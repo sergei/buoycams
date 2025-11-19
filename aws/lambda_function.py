@@ -229,36 +229,36 @@ def parse_meteo_line(line):
 
 
 def find_matching_meteo_data(metadata_text, image_timestamp_str):
-    """Find meteo data row matching image timestamp within +/- 30 mins."""
+    """Find ALL meteo data rows matching image timestamp within +/- 30 mins."""
     try:
         # Parse image timestamp (format: 11/18/2025 1610)
         img_time = datetime.strptime(image_timestamp_str, "%m/%d/%Y %H%M")
-    
+
         # Use splitlines() to handle different line endings safely
         lines = metadata_text.strip().splitlines()
         # Skip first 2 lines (headers)
         data_lines = lines[2:]
-    
-        closest_record = None
-        min_diff = float('inf')
-        
+
+        matching_records = []
+
         for line in data_lines:
             record = parse_meteo_line(line)
             if not record: continue
-            
+
             # Calculate difference in minutes
             diff = abs((record['timestamp'] - img_time).total_seconds() / 60)
-            
-            if diff <= 30 and diff < min_diff:
-                min_diff = diff
-                closest_record = record['data']
-                closest_record['meteo_timestamp'] = record['timestamp'].isoformat()
-                
-        return closest_record
-        
+
+            if diff <= 30:
+                meteo_entry = record['data']
+                meteo_entry['meteo_timestamp'] = record['timestamp'].isoformat()
+                meteo_entry['time_diff_minutes'] = f"{diff:.1f}"
+                matching_records.append(meteo_entry)
+
+        return matching_records
+
     except Exception as e:
         logger.warning(f"Error matching meteo data: {e}")
-        return {}
+        return []
 
 
 def save_to_dynamodb(table, station_id, image_data, meteo_data):
@@ -285,11 +285,11 @@ def save_to_dynamodb(table, station_id, image_data, meteo_data):
         'created_at': datetime.utcnow().isoformat()
     }
     
-    if meteo_data:
+    if len(meteo_data) > 0:
         # DynamoDB requires Decimal for floats, but 'MM' is handled as None
         # We'll store them as strings to avoid Float/Decimal precision headaches, 
         # or convert valid numbers to Decimal if needed. Simple strings are safe.
-        item['meteo'] = meteo_data
+        item['meteo_records'] = meteo_data  # Changed from 'meteo' to 'meteo_records' for clarity
 
         # Add extracted info for verification
         if image_data.get('extracted_info'):
