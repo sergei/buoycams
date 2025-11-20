@@ -1,24 +1,52 @@
-# Description
+# NOAA Buoy Camera Timelapse
+
+## Description
 
 This project generates timelapsed videos using images downloaded from NOAA buoys. 
-The images are downloaded from the following URL: https://www.ndbc.noaa.gov/buoycam.php?station=xxxxx
-where xxxxx is the desired station ID.  
+The images are downloaded from the [NOAA Buoy Camera](https://www.ndbc.noaa.gov/buoycam.php) service.
 Each image contains captures from 6 cameras positioned around the buoy and covering 360 degrees of view.
 
-Along with the image we also download the metadata file which contains information about the buoy such as wind speed, wave height, temperature, etc.
-The URL is https://www.ndbc.noaa.gov/data/5day2/xxxxx_5day.txt where xxxxx is the desired station ID.
-Forma of the file is as follow:
-```aiignore
-#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE
-#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
-2025 11 13 22 40 330  4.0  5.0    MM    MM    MM  MM 1021.7  21.4  26.5  13.3   MM   MM    MM
+Along with the image, we also download metadata (wind speed, wave height, temperature, etc.) from the NOAA data service.
+
+## Architecture
+
+The project consists of two main components:
+
+### 1. Backend (AWS)
+The infrastructure is defined in the `aws/` directory using AWS SAM.
+*   **AWS Lambda**: Triggered by **EventBridge** every 30 minutes to download data.
+*   **Amazon S3**: Stores the downloaded images and raw metadata files.
+*   **Amazon DynamoDB**: Indexes the metadata for fast retrieval.
+*   **Amazon API Gateway**: Exposes a REST API for the frontend to fetch data.
+
+### 2. Frontend (Web)
+A React application located in the `web/` directory.
+*   **Visualization**: Displays buoy images and wind data charts.
+*   **Hosting**: Hosted on **GitHub Pages**.
+*   **CI/CD**: Automatically built and deployed via **GitHub Actions**.
+
+## Deployment
+
+### Backend
+Navigate to the `aws/` directory and run the deploy script to provision the AWS resources:
+
+```bash 
+cd aws
+ ./deploy.sh
 ```
-Both the images and metadata are downloaded every 30 minutes and stored to AWS S3 bucket.
 
-The download script runs as AWS Lambda function triggered by AWS EventBridge every 30 minutes.
+### Frontend
+The frontend is automatically deployed to GitHub Pages whenever you push changes to the `main` branch. 
+The workflow is defined in `.github/workflows/deploy.yml`.
 
-This script is located in aws/ directory.
+The link is https://sergei.github.io/buoycams/
 
-To visualize the data we have react app that fetches the images and metadata from S3 and displays them in a timelapsed video format.
-This app is located in web/ directory.
+To run locally:
+```bash
+cd web
+npm install
+npm run dev
+```
+
+
 
