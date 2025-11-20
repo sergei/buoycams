@@ -11,3 +11,4 @@ This directory contains the AWS infrastructure for downloading and storing NOAA 
 - **AWS CloudWatch**: Monitors and logs function execution
 
 ## File Structure
+Surem

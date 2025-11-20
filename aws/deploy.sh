@@ -73,5 +73,14 @@ aws cloudformation describe-stacks \
     --output table
 
 echo
+echo -e "${GREEN}API Endpoint:${NC}"
+aws cloudformation describe-stacks \
+    --profile "${PROFILE}" \
+    --stack-name "${STACK_NAME}" \
+    --region "${REGION}" \
+    --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+    --output text
+
+echo
 echo -e "${GREEN}You can monitor the Lambda function logs with:${NC}"
 echo "aws logs tail /aws/lambda/${STACK_NAME}-downloader --follow --region ${REGION} --profile ${PROFILE}"

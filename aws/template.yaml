@@ -69,6 +69,44 @@ Resources:
         - AttributeName: timestamp
           KeyType: RANGE
 
+  # HTTP API
+  BuoyApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - OPTIONS
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+  # API Function
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-api"
+      CodeUri: .
+      Handler: api_function.lambda_handler
+      Runtime: python3.11
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MetadataTable
+        - S3ReadPolicy:
+            BucketName: !Ref DataBucket
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref DataBucket
+          DYNAMODB_TABLE: !Ref MetadataTable
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BuoyApi
+            Path: /data
+            Method: GET
+
   # IAM Role for Lambda function
   DownloaderRole:
     Type: AWS::IAM::Role
@@ -153,6 +191,12 @@ Outputs:
     Value: !Ref DataBucket
     Export:
       Name: !Sub "${AWS::StackName}-DataBucket"
+
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${BuoyApi}.execute-api.${AWS::Region}.amazonaws.com/data"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
 
   LambdaFunctionName:
     Description: "Name of the Lambda function"
