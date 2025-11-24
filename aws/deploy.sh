@@ -9,7 +9,7 @@ set -e
 STACK_NAME="noaa-buoycams"
 REGION="us-east-1"
 BUCKET_PREFIX="noaa-buoycams-data"
-STATION_IDS="41009,42036,42003"
+STATION_IDS="41009,42036,42003,51000,51001,51002,51004"
 PROFILE="sailvue"
 
 # Colors for output

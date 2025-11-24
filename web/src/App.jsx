@@ -421,7 +421,15 @@ const App = () => {
                  <div className="flex-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500">Station:</span>
-                      <span className="font-bold text-gray-900">{selectedPoint.station_id}</span>
+                      <a 
+                        href={`https://www.ndbc.noaa.gov/station_page.php?station=${selectedPoint.station_id}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-bold text-blue-600 hover:underline"
+                        title="View station page on NOAA website"
+                      >
+                        {selectedPoint.station_id}
+                      </a>
                     </div>
                     <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
                     <div className="flex items-center gap-2">
