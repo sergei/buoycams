@@ -157,10 +157,10 @@ const App = () => {
           // If we fetched a single station, we only know about that one.
           // Ideally we should fetch the list separately, but for now:
           if (selectedStation === 'all') {
-              setStations(Array.from(stationSet));
+              setStations(Array.from(stationSet).sort());
           } else if (stations.length === 0) {
               // If it's the first load and it's a single station, add it so the dropdown isn't empty
-              setStations(Array.from(stationSet));
+              setStations(Array.from(stationSet).sort());
           }
         }
         
