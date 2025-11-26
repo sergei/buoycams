@@ -321,6 +321,32 @@ const App = () => {
     return date.toLocaleString(undefined, options);
   };
 
+  const isAllStations = selectedStation === 'all';
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const dataPoint = payload[0].payload;
+      return (
+        <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-lg text-sm">
+          <p className="font-bold text-gray-700 mb-1">
+            {formatDate(new Date(label).toISOString(), timeZone)}
+          </p>
+          <p className="text-gray-600 mb-2">
+            Station: <span className="font-medium text-gray-900">{dataPoint.station_id}</span>
+          </p>
+          {payload.map((entry, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-gray-600">{entry.name}:</span>
+              <span className="font-medium text-gray-900">{entry.value} kts</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gray-50">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -496,11 +522,7 @@ const App = () => {
                     label={{ value: 'Wind Speed (kts)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280' } }}
                     tick={{fill: '#6b7280'}}
                   />
-                  <Tooltip
-                    labelFormatter={(label) => formatDate(new Date(label).toISOString(), timeZone)}
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    labelStyle={{ color: '#374151', fontWeight: 'bold', marginBottom: '4px' }}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Legend verticalAlign="top" height={36}/>
 
                   {/* Current Selection Indicator */}
@@ -520,8 +542,8 @@ const App = () => {
                     dataKey="wspd"
                     stroke="#2563eb"
                     name="Wind Speed"
-                    dot={false}
-                    strokeWidth={2}
+                    dot={isAllStations ? { r: 2, fill: "#2563eb" } : false}
+                    strokeWidth={isAllStations ? 0 : 2}
                     activeDot={{ r: 6, strokeWidth: 0 }}
                   />
                   <Line
@@ -529,8 +551,8 @@ const App = () => {
                     dataKey="gust"
                     stroke="#dc2626"
                     name="Gust"
-                    dot={false}
-                    strokeWidth={1}
+                    dot={isAllStations ? { r: 2, fill: "#dc2626" } : false}
+                    strokeWidth={isAllStations ? 0 : 1}
                     strokeDasharray="5 5"
                     activeDot={{ r: 4, strokeWidth: 0 }}
                   />
