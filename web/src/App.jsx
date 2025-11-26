@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Wind, Github, ChevronLeft, ChevronRight, Share2, Check } from 'lucide-react';
+import { Wind, Github, ChevronLeft, ChevronRight, Share2, Check, Cloud } from 'lucide-react';
 
 // --- Configuration ---
 // Use environment variable if available, otherwise fallback or empty
@@ -572,20 +572,32 @@ const App = () => {
         </div>
 
         <footer className="mt-4 text-center text-gray-500 border-t pt-4 pb-4">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <a
-              href="https://github.com/sergei/buoycams"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 hover:text-gray-900 transition-colors"
-            >
-              <Github className="h-5 w-5" />
-              <span>Source Code on GitHub</span>
-            </a>
-          </div>
-           <p className="text-sm">
-            Data provided by <a
-              href="https://www.ndbc.noaa.gov/buoycams.shtml"
+              <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
+                <a
+                  href="https://github.com/sergei/buoycams"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+                >
+                  <Github className="h-5 w-5" />
+                  <span>Source Code on GitHub</span>
+                </a>
+
+                <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
+
+                <a
+                  href="https://cloudappreciationsociety.org/cloud-library/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+                >
+                  <Cloud className="h-5 w-5" />
+                  <span>Cloud Appreciation Society</span>
+                </a>
+              </div>
+               <p className="text-sm">
+                Data provided by <a
+                  href="https://www.ndbc.noaa.gov/buoycams.shtml"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-blue-600 transition-colors"
