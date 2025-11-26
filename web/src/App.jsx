@@ -348,15 +348,15 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 bg-gray-50">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 gap-4">
+    <div className="min-h-screen p-2 md:p-4 bg-gray-50">
+      <div className="max-w-7xl mx-auto space-y-2">
+        <header className="flex flex-col md:flex-row md:items-center justify-between bg-white p-2 rounded-xl shadow-sm border border-gray-100 gap-2">
           <div className="flex items-center gap-2">
             <Wind className="h-8 w-8 text-blue-600" />
             <h1 className="text-3xl font-bold text-gray-900">NOAA Buoy Cams</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2">
               <span className="text-gray-600 hidden sm:inline">Time Zone:</span>
               <select
@@ -403,13 +403,13 @@ const App = () => {
         {/* Main Layout: Stacked Vertical */}
 
         {/* Top Section: Camera Image & Details */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
           {selectedPoint ? (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               {/* Top: Image Area - Full Width */}
               <div className="w-full bg-black rounded-lg shadow-inner overflow-x-auto">
                 {selectedPoint.image_url ? (
-                  <div className="h-[300px] inline-block relative">
+                  <div className="h-[250px] inline-block relative">
                     <a
                       href={selectedPoint.image_url}
                       target="_blank"
@@ -420,19 +420,19 @@ const App = () => {
                       <img
                         src={selectedPoint.image_url}
                         alt={`Buoy ${selectedPoint.station_id}`}
-                        className="h-[300px] w-auto max-w-none object-contain hover:opacity-90 transition-opacity"
+                        className="h-[250px] w-auto max-w-none object-contain hover:opacity-90 transition-opacity"
                       />
                     </a>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px] text-gray-400 w-full">
+                  <div className="flex items-center justify-center h-[250px] text-gray-400 w-full">
                     No Image Available
                   </div>
                 )}
               </div>
 
               {/* Bottom: Navigation & Stats Bar */}
-              <div className="flex flex-col md:flex-row items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 gap-4">
+              <div className="flex flex-col md:flex-row items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200 gap-2">
                  {/* Prev Button */}
                  <button
                    onClick={handlePrev}
@@ -491,7 +491,7 @@ const App = () => {
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 min-h-[300px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 min-h-[250px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
               <Wind className="h-16 w-16 mb-4 opacity-20" />
               <p>Select a data point from the chart below to view image</p>
             </div>
@@ -499,11 +499,11 @@ const App = () => {
         </div>
 
         {/* Bottom Section: Chart */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
           {loading ? (
-            <div className="h-[400px] flex items-center justify-center text-gray-500">Loading chart data...</div>
+            <div className="h-[250px] flex items-center justify-center text-gray-500">Loading chart data...</div>
           ) : (
-            <div className="h-[400px]">
+            <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} onClick={handleChartClick}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
@@ -558,14 +558,14 @@ const App = () => {
                   />
                 </LineChart>
               </ResponsiveContainer>
-              <p className="text-sm text-gray-500 mt-4 text-center italic">
+              <p className="text-sm text-gray-500 mt-2 text-center italic">
                 Click on any point in the chart to update the camera view above.
               </p>
             </div>
           )}
         </div>
 
-        <footer className="mt-12 text-center text-gray-500 border-t pt-8 pb-8">
+        <footer className="mt-4 text-center text-gray-500 border-t pt-4 pb-4">
           <div className="flex items-center justify-center gap-2 mb-2">
             <a
               href="https://github.com/sergei/buoycams"
