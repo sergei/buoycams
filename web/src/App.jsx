@@ -122,10 +122,16 @@ const App = () => {
 
           if (item.meteo_records) {
             item.meteo_records.forEach(record => {
-              const ts = new Date(record.meteo_timestamp).getTime();
+              // Backend returns naive UTC ISO string (e.g. "2025-11-18T12:00:00")
+              // We append 'Z' to ensure it is parsed as UTC, not local time.
+              const meteoIso = record.meteo_timestamp.endsWith('Z') 
+                ? record.meteo_timestamp 
+                : record.meteo_timestamp + 'Z';
+              
+              const ts = new Date(meteoIso).getTime();
               
               flattened.push({
-                timestamp: record.meteo_timestamp, // ISO string
+                timestamp: meteoIso, // ISO string
                 chartTimestamp: ts, // Numeric timestamp for XAxis
                 wspd: toKts(record.wind_speed),
                 gust: toKts(record.gust),
@@ -134,7 +140,7 @@ const App = () => {
                 image_url: imageUrl,
                 raw_record: record,
                 // Prefer the image timestamp if we successfully parsed it, otherwise fallback to wind timestamp
-                displayTimestamp: rekognitionIso || record.meteo_timestamp
+                displayTimestamp: rekognitionIso || meteoIso
               });
             });
           }
