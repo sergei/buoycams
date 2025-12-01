@@ -21,10 +21,11 @@ const TIMEZONES = [
 
 // --- Components ---
 
-const PanoramaViewer = ({ imageUrl }) => {
+const PanoramaViewer = ({ imageUrl, windDir }) => {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-
+  const [aspectRatio, setAspectRatio] = useState(null);
+  
   const startXRef = useRef(0);
   const startOffsetRef = useRef(0);
 
@@ -44,11 +45,108 @@ const PanoramaViewer = ({ imageUrl }) => {
     setIsDragging(false);
   };
 
+  // Load image to determine aspect ratio for correct scale mapping
+  useEffect(() => {
+    if (!imageUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) {
+        setAspectRatio(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  const cycleWidth = aspectRatio ? 250 * aspectRatio : 0;
+
+  const compassSvg = React.useMemo(() => {
+    if (!cycleWidth) return '';
+    const height = 250; // Match container height for 1:1 coordinate mapping
+    
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cycleWidth}" height="${height}" viewBox="0 0 ${cycleWidth} ${height}">`;
+    
+    // Background strip for compass (top 30px)
+    svg += `<defs><linearGradient id="grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="rgba(0,0,0,0.6)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></linearGradient></defs>`;
+    svg += `<rect x="0" y="0" width="${cycleWidth}" height="30" fill="url(#grad)" />`;
+    
+    // Ticks and Text
+    // 360 degrees total. 30 degree increments = 12 ticks.
+    // Start at 60 degrees at left edge (x=0)
+    const stepPx = cycleWidth / 12;
+    
+    for (let i = 0; i < 12; i++) {
+       const x = i * stepPx;
+       let deg = (60 + i * 30) % 360;
+       if (deg === 0) deg = 360;
+       
+       // Tick
+       svg += `<line x1="${x}" y1="0" x2="${x}" y2="30" stroke="white" stroke-width="2" opacity="0.8" />`;
+       
+       // Text (shifted right to avoid clipping at x=0)
+       svg += `<text x="${x + 5}" y="22" fill="white" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="start" style="text-shadow: 1px 1px 2px black">${deg}</text>`;
+    }
+    
+    // Wind Direction Line
+    if (typeof windDir === 'number' && !isNaN(windDir)) {
+        // Calculate X position for wind direction
+        // Image starts at 60 degrees. 
+        // deg_offset is how many degrees windDir is from 60 (clockwise)
+        const degOffset = (windDir - 60 + 360) % 360;
+        const windX = (degOffset / 360) * cycleWidth;
+        
+        svg += `<line x1="${windX}" y1="30" x2="${windX}" y2="${height}" stroke="grey" stroke-width="3" stroke-opacity="0.8" stroke-dasharray="10, 5" />`;
+        
+        // Add label if it doesn't overlap with major ticks (multiples of 30)
+        // We check if the direction is close to a multiple of 30
+        const isMajorTick = Math.abs(windDir % 30) < 2 || Math.abs(windDir % 30) > 28;
+        
+        if (!isMajorTick) {
+             // Use &#176; for degree symbol to be safe with btoa
+             svg += `<text x="${windX + 5}" y="22" fill="grey" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="start" style="text-shadow: 1px 1px 2px white">${Math.round(windDir)}&#176;</text>`;
+        }
+    }
+    
+    svg += `</svg>`;
+    
+    // Safe base64 encoding for UTF-8 strings
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+  }, [cycleWidth, windDir]);
+
+  const bgStyle = (() => {
+    if (!imageUrl) return {};
+    
+    // Base image layer
+    const base = {
+        image: `url(${imageUrl})`,
+        pos: `-${offset}px center`,
+        size: 'auto 100%',
+        repeat: 'repeat-x'
+    };
+
+    // If compass is ready, add it as top layer
+    if (compassSvg) {
+        return {
+            backgroundImage: `url(${compassSvg}), ${base.image}`,
+            backgroundPosition: `-${offset}px top, ${base.pos}`,
+            backgroundSize: `${cycleWidth}px 100%, ${base.size}`,
+            backgroundRepeat: `repeat-x, ${base.repeat}`
+        };
+    }
+
+    // Fallback to just image
+    return {
+        backgroundImage: base.image,
+        backgroundPosition: base.pos,
+        backgroundSize: base.size,
+        backgroundRepeat: base.repeat
+    };
+  })();
+
   return (
-    <div
-      className="w-full h-[250px] cursor-grab active:cursor-grabbing overflow-hidden rounded-lg relative touch-none bg-gray-900 shadow-inner"
-      onMouseDown={(e) => handleStart(e.clientX)}
-      onMouseMove={(e) => handleMove(e.clientX)}
+    <div 
+      className="w-full h-[250px] cursor-grab active:cursor-grabbing overflow-hidden rounded-lg relative touch-none bg-gray-900 shadow-inner select-none"
+      onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX); }}
+      onMouseMove={(e) => { e.preventDefault(); handleMove(e.clientX); }}
       onMouseUp={handleEnd}
       onMouseLeave={handleEnd}
       onTouchStart={(e) => handleStart(e.touches[0].clientX)}
@@ -56,22 +154,15 @@ const PanoramaViewer = ({ imageUrl }) => {
       onTouchEnd={handleEnd}
     >
       {imageUrl ? (
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `url(${imageUrl})`,
-            backgroundPosition: `-${offset}px center`,
-            backgroundRepeat: 'repeat-x',
-            backgroundSize: 'auto 100%'
-          }}
+        <div 
+          className="w-full h-full pointer-events-none"
+          style={bgStyle}
         />
       ) : (
         <div className="flex items-center justify-center h-full text-gray-400">
           No Image Available
         </div>
       )}
-      
-      {/* REMOVED: Overlay label */}
     </div>
   );
 };
@@ -392,7 +483,7 @@ const App = () => {
         <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
           {selectedPoint ? (
             <div className="flex flex-col gap-2">
-              <PanoramaViewer imageUrl={selectedPoint.image_url} />
+              <PanoramaViewer imageUrl={selectedPoint.image_url} windDir={selectedPoint.wdir} />
 
               <div className="flex flex-col md:flex-row items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200 gap-2">
                  <button
