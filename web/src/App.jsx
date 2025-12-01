@@ -3,7 +3,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Wind, Github, ChevronLeft, ChevronRight, Share2, Check, Cloud } from 'lucide-react';
 
 // --- Configuration ---
-// Use environment variable if available, otherwise fallback or empty
 const API_URL = import.meta.env.VITE_API_URL || "https://57pfzyzy3f.execute-api.us-east-1.amazonaws.com/data";
 
 const TIMEZONES = [
@@ -20,6 +19,63 @@ const TIMEZONES = [
   { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
 ];
 
+// --- Components ---
+
+const PanoramaViewer = ({ imageUrl }) => {
+  const [offset, setOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const startXRef = useRef(0);
+  const startOffsetRef = useRef(0);
+
+  const handleStart = (clientX) => {
+    setIsDragging(true);
+    startXRef.current = clientX;
+    startOffsetRef.current = offset;
+  };
+
+  const handleMove = (clientX) => {
+    if (!isDragging) return;
+    const delta = startXRef.current - clientX;
+    setOffset(startOffsetRef.current + delta);
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+  };
+
+  return (
+    <div
+      className="w-full h-[250px] cursor-grab active:cursor-grabbing overflow-hidden rounded-lg relative touch-none bg-gray-900 shadow-inner"
+      onMouseDown={(e) => handleStart(e.clientX)}
+      onMouseMove={(e) => handleMove(e.clientX)}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+      onTouchEnd={handleEnd}
+    >
+      {imageUrl ? (
+        <div
+          className="w-full h-full"
+          style={{
+            backgroundImage: `url(${imageUrl})`,
+            backgroundPosition: `-${offset}px center`,
+            backgroundRepeat: 'repeat-x',
+            backgroundSize: 'auto 100%'
+          }}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full text-gray-400">
+          No Image Available
+        </div>
+      )}
+      
+      {/* REMOVED: Overlay label */}
+    </div>
+  );
+};
+
 const App = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,16 +85,13 @@ const App = () => {
   const [timeZone, setTimeZone] = useState('UTC');
   const [showCopied, setShowCopied] = useState(false);
 
-  // Ref to track if initial load from URL is pending
   const initialLoadRef = useRef(true);
 
-  // Helper to convert m/s to knots
   const toKts = (ms) => {
     const val = parseFloat(ms);
     return isNaN(val) ? 0 : parseFloat((val * 1.94384).toFixed(1));
   };
 
-  // Helper to format date based on selected timezone
   const formatDate = (isoString, tz, options = {}) => {
     if (!isoString) return '';
     const date = new Date(isoString);
@@ -52,9 +105,7 @@ const App = () => {
       timeZoneName: 'short'
     };
 
-    // Handle "Local" vs specific IANA timezones
     if (tz === 'Local') {
-      // undefined timeZone uses system local
       defaultOptions.timeZone = undefined;
     } else {
       defaultOptions.timeZone = tz;
@@ -63,7 +114,6 @@ const App = () => {
     return date.toLocaleString(undefined, { ...defaultOptions, ...options });
   };
 
-  // --- Effect: Read URL params on mount ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const stationParam = params.get('station_id');
@@ -72,9 +122,8 @@ const App = () => {
     }
   }, []);
 
-  // Fetch data
   useEffect(() => {
-    let ignore = false; // Flag to ignore stale results
+    let ignore = false;
 
     const fetchData = async () => {
       setLoading(true);
@@ -86,30 +135,24 @@ const App = () => {
         const res = await fetch(url);
         const rawData = await res.json();
 
-        // If this effect is stale (cleanup ran), ignore result
         if (ignore) return;
 
-        // Flatten data for the chart
         const flattened = [];
         const stationSet = new Set();
 
         rawData.forEach(item => {
           stationSet.add(item.station_id);
           const imageUrl = item.image_url;
-          // Extract time from rekognition data if available
           const rekognitionTimeStr = item.rekognition_data?.time;
-          
-          // Parse rekognition string "MM/DD/YYYY HHMM" to ISO UTC string
+
           let rekognitionIso = null;
           if (rekognitionTimeStr) {
             try {
-              // Expected format: "11/18/2025 1610"
               const [datePart, timePart] = rekognitionTimeStr.split(' ');
               if (datePart && timePart && timePart.length === 4) {
                 const [month, day, year] = datePart.split('/');
                 const hour = timePart.substring(0, 2);
                 const minute = timePart.substring(2, 4);
-                // Create UTC date
                 const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
                 if (!isNaN(date.getTime())) {
                   rekognitionIso = date.toISOString();
@@ -122,71 +165,57 @@ const App = () => {
 
           if (item.meteo_records) {
             item.meteo_records.forEach(record => {
-              // Backend returns naive UTC ISO string (e.g. "2025-11-18T12:00:00")
-              // We append 'Z' to ensure it is parsed as UTC, not local time.
-              const meteoIso = record.meteo_timestamp.endsWith('Z') 
-                ? record.meteo_timestamp 
+              const meteoIso = record.meteo_timestamp.endsWith('Z')
+                ? record.meteo_timestamp
                 : record.meteo_timestamp + 'Z';
-              
+
               const ts = new Date(meteoIso).getTime();
-              
+
               flattened.push({
-                timestamp: meteoIso, // ISO string
-                chartTimestamp: ts, // Numeric timestamp for XAxis
+                timestamp: meteoIso,
+                chartTimestamp: ts,
                 wspd: toKts(record.wind_speed),
                 gust: toKts(record.gust),
                 wdir: parseFloat(record.wind_dir) || 0,
                 station_id: item.station_id,
                 image_url: imageUrl,
                 raw_record: record,
-                // Prefer the image timestamp if we successfully parsed it, otherwise fallback to wind timestamp
                 displayTimestamp: rekognitionIso || meteoIso
               });
             });
           }
         });
 
-        // Sort by time
         flattened.sort((a, b) => a.chartTimestamp - b.chartTimestamp);
 
         setData(flattened);
-        
-        // Only update station list if we fetched 'all' or if list is empty
-        // This prevents wiping the list when viewing a single station
+
         if (selectedStation === 'all' || stations.length === 0) {
-          // If we fetched a single station, we only know about that one.
-          // Ideally we should fetch the list separately, but for now:
           if (selectedStation === 'all') {
               setStations(Array.from(stationSet).sort());
           } else if (stations.length === 0) {
-              // If it's the first load and it's a single station, add it so the dropdown isn't empty
               setStations(Array.from(stationSet).sort());
           }
         }
-        
-        // Handle Initial Selection based on URL or Default
+
         if (flattened.length > 0) {
-          // Check for time param on first load
           const params = new URLSearchParams(window.location.search);
           const timeParam = params.get('time');
-          
+
           if (timeParam && initialLoadRef.current) {
              const targetTime = parseInt(timeParam);
-             // Find closest point
              const found = flattened.reduce((prev, curr) => {
                return (Math.abs(curr.chartTimestamp - targetTime) < Math.abs(prev.chartTimestamp - targetTime) ? curr : prev);
              });
-             
+
              if (found) {
                setSelectedPoint(found);
              }
           } else if (!selectedPoint) {
-             // Only default to latest if we don't have a point selected (e.g. station change)
              setSelectedPoint(flattened[flattened.length - 1]);
           }
         }
-        
-        // Mark initial load as complete
+
         initialLoadRef.current = false;
 
       } catch (err) {
@@ -203,7 +232,7 @@ const App = () => {
     fetchData();
 
     return () => {
-      ignore = true; // Mark this effect execution as stale
+      ignore = true;
     };
   }, [selectedStation]);
 
@@ -214,49 +243,19 @@ const App = () => {
     }
   };
 
-  // Navigation Handlers
   const handlePrev = () => {
     if (!selectedPoint || data.length === 0) return;
-    const currentUrl = selectedPoint.image_url;
-    const currentIndex = data.findIndex(d => d.timestamp === selectedPoint.timestamp);
-
-    if (currentIndex === -1) return;
-
-    // 1. Find the last item of the previous group (skip current image group)
-    let i = currentIndex - 1;
-    // Loop backwards as long as we are in bounds AND the url is the same as current
-    while (i >= 0 && data[i] && data[i].image_url === currentUrl) {
-      i--;
-    }
-
-    if (i >= 0 && data[i]) {
-      // 2. We found the last item of the previous group.
-      // Now find the FIRST item of that specific previous group to be consistent.
-      const prevGroupUrl = data[i].image_url;
-      let firstOfPrev = i;
-      // Loop backwards as long as previous item exists and has same url
-      while (firstOfPrev > 0 && data[firstOfPrev - 1] && data[firstOfPrev - 1].image_url === prevGroupUrl) {
-        firstOfPrev--;
-      }
-      setSelectedPoint(data[firstOfPrev]);
+    const currentIndex = data.indexOf(selectedPoint);
+    if (currentIndex > 0) {
+      setSelectedPoint(data[currentIndex - 1]);
     }
   };
 
   const handleNext = () => {
     if (!selectedPoint || data.length === 0) return;
-    const currentUrl = selectedPoint.image_url;
-    const currentIndex = data.findIndex(d => d.timestamp === selectedPoint.timestamp);
-
-    if (currentIndex === -1) return;
-
-    // Find the first item of the next group (skip current image group)
-    let nextIndex = currentIndex + 1;
-    while(nextIndex < data.length && data[nextIndex] && data[nextIndex].image_url === currentUrl) {
-      nextIndex++;
-    }
-
-    if (nextIndex < data.length && data[nextIndex]) {
-      setSelectedPoint(data[nextIndex]);
+    const currentIndex = data.indexOf(selectedPoint);
+    if (currentIndex < data.length - 1 && currentIndex !== -1) {
+      setSelectedPoint(data[currentIndex + 1]);
     }
   };
 
@@ -280,34 +279,18 @@ const App = () => {
     }
   };
 
-  // Helper to check if navigation is possible
   const canGoPrev = () => {
     if (!selectedPoint || data.length === 0) return false;
-    const currentIndex = data.findIndex(d => d.timestamp === selectedPoint.timestamp);
-    if (currentIndex === -1) return false;
-
-    // Can go prev if there is a record before the current group
-    // Check if any record before current index has a different URL
-    for (let i = currentIndex - 1; i >= 0; i--) {
-        if (data[i] && data[i].image_url !== selectedPoint.image_url) return true;
-    }
-    return false;
+    const currentIndex = data.indexOf(selectedPoint);
+    return currentIndex > 0;
   };
 
   const canGoNext = () => {
     if (!selectedPoint || data.length === 0) return false;
-    const currentIndex = data.findIndex(d => d.timestamp === selectedPoint.timestamp);
-    if (currentIndex === -1) return false;
-
-    // Can go next if there is a record after the current group
-    // Check if any record after current index has a different URL
-    for (let i = currentIndex + 1; i < data.length; i++) {
-        if (data[i] && data[i].image_url !== selectedPoint.image_url) return true;
-    }
-    return false;
+    const currentIndex = data.indexOf(selectedPoint);
+    return currentIndex !== -1 && currentIndex < data.length - 1;
   };
 
-  // Helper to format X-axis ticks
   const formatXAxis = (tick) => {
     const date = new Date(tick);
     const options = {
@@ -362,7 +345,7 @@ const App = () => {
             <h1 className="text-3xl font-bold text-gray-900">NOAA Buoy Cams</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-gray-600 hidden sm:inline">Time Zone:</span>
               <select
@@ -406,40 +389,12 @@ const App = () => {
           </div>
         </header>
 
-        {/* Main Layout: Stacked Vertical */}
-
-        {/* Top Section: Camera Image & Details */}
         <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
           {selectedPoint ? (
             <div className="flex flex-col gap-2">
-              {/* Top: Image Area - Full Width */}
-              <div className="w-full bg-black rounded-lg shadow-inner overflow-x-auto">
-                {selectedPoint.image_url ? (
-                  <div className="h-[250px] inline-block relative">
-                    <a
-                      href={selectedPoint.image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-full"
-                      title="Click to view full size"
-                    >
-                      <img
-                        src={selectedPoint.image_url}
-                        alt={`Buoy ${selectedPoint.station_id}`}
-                        className="h-[250px] w-auto max-w-none object-contain hover:opacity-90 transition-opacity"
-                      />
-                    </a>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-[250px] text-gray-400 w-full">
-                    No Image Available
-                  </div>
-                )}
-              </div>
+              <PanoramaViewer imageUrl={selectedPoint.image_url} />
 
-              {/* Bottom: Navigation & Stats Bar */}
               <div className="flex flex-col md:flex-row items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200 gap-2">
-                 {/* Prev Button */}
                  <button
                    onClick={handlePrev}
                    disabled={!canGoPrev()}
@@ -449,13 +404,12 @@ const App = () => {
                    <span className="hidden sm:inline">Prev</span>
                  </button>
 
-                 {/* Center: Compact Stats */}
                  <div className="flex-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500">Station:</span>
-                      <a 
+                      <a
                         href={`https://www.ndbc.noaa.gov/station_page.php?station=${selectedPoint.station_id}`}
-                        target="_blank" 
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="font-bold text-blue-600 hover:underline"
                         title="View station page on NOAA website"
@@ -485,7 +439,6 @@ const App = () => {
                     </div>
                  </div>
 
-                 {/* Next Button */}
                  <button
                    onClick={handleNext}
                    disabled={!canGoNext()}
@@ -504,7 +457,6 @@ const App = () => {
           )}
         </div>
 
-        {/* Bottom Section: Chart */}
         <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
           {loading ? (
             <div className="h-[250px] flex items-center justify-center text-gray-500">Loading chart data...</div>
@@ -531,7 +483,6 @@ const App = () => {
                   <Tooltip content={<CustomTooltip />} />
                   <Legend verticalAlign="top" height={36}/>
 
-                  {/* Current Selection Indicator */}
                   {selectedPoint && (
                     <ReferenceLine
                       key={selectedPoint.chartTimestamp}
@@ -572,32 +523,32 @@ const App = () => {
         </div>
 
         <footer className="mt-4 text-center text-gray-500 border-t pt-4 pb-4">
-              <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
-                <a
-                  href="https://github.com/sergei/buoycams"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-gray-900 transition-colors"
-                >
-                  <Github className="h-5 w-5" />
-                  <span>Source Code on GitHub</span>
-                </a>
+          <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
+            <a
+              href="https://github.com/sergei/buoycams"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+            >
+              <Github className="h-5 w-5" />
+              <span>Source Code on GitHub</span>
+            </a>
 
-                <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
+            <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
 
-                <a
-                  href="https://cloudappreciationsociety.org/cloud-library/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-gray-900 transition-colors"
-                >
-                  <Cloud className="h-5 w-5" />
-                  <span>Cloud Appreciation Society</span>
-                </a>
-              </div>
-               <p className="text-sm">
-                Data provided by <a
-                  href="https://www.ndbc.noaa.gov/buoycams.shtml"
+            <a
+              href="https://cloudappreciationsociety.org/cloud-library/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+            >
+              <Cloud className="h-5 w-5" />
+              <span>Cloud Appreciation Society</span>
+            </a>
+          </div>
+           <p className="text-sm">
+            Data provided by <a
+              href="https://www.ndbc.noaa.gov/buoycams.shtml"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-blue-600 transition-colors"
